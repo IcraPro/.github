@@ -32,17 +32,17 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Install VirtoCommerce.GlobalTool
+    - name: Install Minima.BuildTool
       uses: IcraPro/mn-github-actions/setup-mnbuild@main
 
     - name: Setup Git Credentials
-      uses: VirtoCommerce/vc-github-actions/setup-git-credentials-github@master
+      uses: IcraPro/mn-github-actions/setup-git-credentials-github@master
       with:
         githubToken: ${{ secrets.REPO_TOKEN }}
 
     - name: Increment ${{ inputs.versionType }} Version
       run: |
-        vc-build Increment${{ inputs.versionType }}
+        mn-build Increment${{ inputs.versionType }}
         git add Directory.Build.props ${{ env.MODULE_MANIFEST }}
         git commit -m "ci: Auto Increment${{ inputs.versionType }}"
         git push

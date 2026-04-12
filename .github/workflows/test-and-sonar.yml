@@ -28,7 +28,7 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install VirtoCommerce.GlobalTool
+    - name: Install Minima.BuildTool
       uses: IcraPro/mn-github-actions/setup-mnbuild@main
     
     - name: Install dotnet-sonarscanner
@@ -54,18 +54,18 @@ jobs:
 
 
     - name: SonarCloud Begin
-      uses: VirtoCommerce/vc-github-actions/sonar-scanner-begin@master
+      uses: IcraPro/mn-github-actions/sonar-scanner-begin@master
 
     - name: Build
-      run: vc-build Compile
+      run: mn-build Compile
 
     - name: Unit Tests
-      run: vc-build Test -skip
+      run: mn-build Test -skip
 
     - name: SonarCloud End
-      uses: VirtoCommerce/vc-github-actions/sonar-scanner-end@master
+      uses: IcraPro/mn-github-actions/sonar-scanner-end@master
 
     - name: Quality Gate
-      uses: VirtoCommerce/vc-github-actions/sonar-quality-gate@master
+      uses: IcraPro/mn-github-actions/sonar-quality-gate@master
       with:
         login: ${{ env.SONAR_TOKEN }}

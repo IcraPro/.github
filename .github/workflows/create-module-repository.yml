@@ -327,7 +327,7 @@ jobs:
           EOF
 
       - name: Setup Git credentials
-        uses: VirtoCommerce/vc-github-actions/setup-git-credentials-github@master
+        uses: IcraPro/mn-github-actions/setup-git-credentials-github@master
         with:
           githubToken: ${{ secrets.REPO_TOKEN }}
 

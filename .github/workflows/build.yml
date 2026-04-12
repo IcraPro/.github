@@ -98,7 +98,7 @@ jobs:
     - name: Increment Patch Version
       if: ${{ inputs.incrementPatch == 'true' }}
       run: |
-        vc-build IncrementPatch
+        mn-build IncrementPatch
 
     - name: Get Artifact Version
       uses: IcraPro/mn-github-actions/get-image-version@main
@@ -125,7 +125,7 @@ jobs:
         versionSuffix: ${{ env.VERSION_SUFFIX }}
 
     - name: Packaging
-      run: vc-build Compress+Pack -skip Test
+      run: mn-build Compress+Pack -skip Test
 
     - name: Get cache key
       uses: IcraPro/mn-github-actions/cache-get-key@main

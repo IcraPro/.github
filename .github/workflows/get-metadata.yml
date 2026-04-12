@@ -32,7 +32,7 @@ jobs:
 
     steps: 
 
-    - name: Install VirtoCommerce.GlobalTool
+    - name: Install Minima.BuildTool
       uses: IcraPro/mn-github-actions/setup-mnbuild@main
 
     - name: Set FETCH_DEPTH variables

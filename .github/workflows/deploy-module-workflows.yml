@@ -136,7 +136,7 @@ jobs:
         cp ${{ env.TEMPLATES_LIST }} ${{ env.DEST_FOLDER }}
 
     - name: Setup Git Credentials
-      uses: VirtoCommerce/vc-github-actions/setup-git-credentials-github@master
+      uses: IcraPro/mn-github-actions/setup-git-credentials-github@master
       with: 
         githubToken: ${{ secrets.REPO_TOKEN }}
 

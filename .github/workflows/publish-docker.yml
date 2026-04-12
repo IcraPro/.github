@@ -72,7 +72,7 @@ jobs:
 
     - name: Load Docker image 
       id: load-docker
-      uses: VirtoCommerce/vc-github-actions/docker-load-image@master
+      uses: IcraPro/mn-github-actions/docker-load-image@master
       with:
         dockerTar: ${{ env.DOCKER_TAR }}
 
@@ -84,7 +84,7 @@ jobs:
         password: ${{ env.GITHUB_TOKEN }}
 
     - name: Publish Docker Image
-      uses: VirtoCommerce/vc-github-actions/publish-docker-image@master
+      uses: IcraPro/mn-github-actions/publish-docker-image@master
       with:
           image: ${{ steps.load-docker.outputs.image }}
           tag: ${{ steps.load-docker.outputs.tag }}

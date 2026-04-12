@@ -20,15 +20,15 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.envPAT }}
 
-      - name: Install VirtoCommerce.GlobalTool
+      - name: Install Minima.BuildTool
         uses: IcraPro/mn-github-actions/setup-mnbuild@main
 
       - name: Setup Git Credentials
-        uses: VirtoCommerce/vc-github-actions/setup-git-credentials-github@master
+        uses: IcraPro/mn-github-actions/setup-git-credentials-github@master
         with: 
           githubToken: ${{ secrets.envPAT }}
       
-      - name: Run vc-build QuickRelease
+      - name: Run mn-build QuickRelease
         shell: pwsh
         run: |
           $branchList = git branch --all --list '*/main'
@@ -40,4 +40,4 @@ jobs:
           } else {
             $branchMain = 'master'
           }
-          vc-build QuickRelease -MainBranch $branchMain
+          mn-build QuickRelease -MainBranch $branchMain

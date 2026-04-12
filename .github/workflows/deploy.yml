@@ -43,14 +43,14 @@ jobs:
 
     steps:
       - name: Read deployment config
-        uses: VirtoCommerce/vc-github-actions/get-deploy-param@master
+        uses: IcraPro/mn-github-actions/get-deploy-param@main
         id: deployConfig
         with:
           envName: ${{ matrix.envName }}
           deployConfigPath: ${{ matrix.confPath }}
 
       - name: Start deployment
-        uses: VirtoCommerce/vc-github-actions/gh-deployments@master
+        uses: IcraPro/mn-github-actions/gh-deployments@master
         id: deployment
         with:
           step: start
@@ -59,7 +59,7 @@ jobs:
           no_override: false
 
       - name: Update deployment-cm
-        uses: VirtoCommerce/vc-github-actions/create-deploy-pr@master
+        uses: IcraPro/mn-github-actions/create-deploy-pr@master
         with:
           deployRepo: ${{ steps.deployConfig.outputs.deployRepo }}
           deployBranch: ${{ steps.deployConfig.outputs.deployBranch }}
@@ -78,8 +78,8 @@ jobs:
         if: ${{ inputs.forceCommit }}
         timeout-minutes: 5
         run: |
-          dotnet tool install --global VirtoCommerce.GlobalTool || true
-          vc-build CloudEnvStatus -CloudUrl ${{ env.CLOUD_URL }} -CloudToken ${{ secrets.VIRTOCLOUD_KEY_VCPT_VCST }} -EnvironmentName ${{ steps.deployConfig.outputs.deployAppName }} -HealthStatus Healthy -SyncStatus Synced
+          dotnet tool install --global Minima.BuildTool || true
+          mn-build CloudEnvStatus -CloudUrl ${{ env.CLOUD_URL }} -CloudToken ${{ secrets.VIRTOCLOUD_KEY_VCPT_VCST }} -EnvironmentName ${{ steps.deployConfig.outputs.deployAppName }} -HealthStatus Healthy -SyncStatus Synced
         shell: bash
 
       - name: BUILD_STATE::successful
@@ -91,7 +91,7 @@ jobs:
         run: echo "BUILD_STATE=failed"  >> $GITHUB_ENV
 
       - name: Update GitHub deployment status
-        uses: VirtoCommerce/vc-github-actions/gh-deployments@master
+        uses: IcraPro/mn-github-actions/gh-deployments@master
         if: always()
         with:
           step: finish

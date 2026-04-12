@@ -57,7 +57,7 @@ jobs:
 
     steps: 
 
-    - name: Install VirtoCommerce.GlobalTool
+    - name: Install Minima.BuildTool
       uses: IcraPro/mn-github-actions/setup-mnbuild@main
 
     - uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
     - name: Increment Patch Version
       if: ${{ inputs.incrementPatch == 'true' }}
       run: |
-        vc-build IncrementPatch
+        mn-build IncrementPatch
 
     - name: Get package from cache
       uses: actions/cache@v4
@@ -94,18 +94,18 @@ jobs:
         organization: ${{ github.repository_owner }}
         skipString: 'Clean+Restore+Compile+WebPackBuild+Test+Publish+Compress'
         makeLatest: ${{ inputs.makeLatest }}
-      uses: VirtoCommerce/vc-github-actions/publish-github-release@master
+      uses: IcraPro/mn-github-actions/publish-github-release@master
 
     - name: Publish Nuget
       if: ${{ inputs.forceNuget }}
-      uses: VirtoCommerce/vc-github-actions/publish-nuget@master
+      uses: IcraPro/mn-github-actions/publish-nuget@master
       with:
         skipString: 'Clean+Restore+Compile+Test+Pack'
 
     - name: Publish to Blob
       if:  ${{ inputs.forceBlob }}
       id: blobRelease
-      uses: VirtoCommerce/vc-github-actions/publish-blob-release@master
+      uses: IcraPro/mn-github-actions/publish-blob-release@master
       with:
         blobSAS: ${{ secrets.BLOB_TOKEN }}
         blobUrl: ${{ vars.BLOB_URL }}
@@ -113,7 +113,7 @@ jobs:
     - name: Get PR number
       id: getPrNumber
       if: ${{ inputs.forceBlob }}
-      uses: VirtoCommerce/vc-github-actions/get-pr-number@master
+      uses: IcraPro/mn-github-actions/get-pr-number@master
       with:
         repo: "${{ github.repository }}"
         branch: "${{ github.ref_name }}"
