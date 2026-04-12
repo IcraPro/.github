@@ -1,0 +1,94 @@
+# v3.800.27
+# https://virtocommerce.atlassian.net/browse/VCST-4746
+name: VC Publish docker
+
+on:
+  workflow_call:
+    outputs:
+      imagePath: 
+        value: '${{ jobs.publish-docker.outputs.imagePath }}'
+      image: 
+        value: '${{ jobs.publish-docker.outputs.image }}'
+      tag: 
+        value: '${{ jobs.publish-docker.outputs.tag }}'
+
+    inputs:
+      shortKey:
+        required: false
+        type: string
+        default: ''
+      fullKey:
+        required: true
+        type: string
+      dockerTar:
+        required: true
+        type: string
+      publishToDocker:
+        required: false
+        type: string
+        default: 'false'
+      updateLatestTag:
+        required: false
+        type: string
+        default: 'false'
+
+    secrets:
+      envPAT:
+        required: true
+      dockerUser:
+        required: true
+      dockerToken:
+        required: true
+
+jobs:
+  publish-docker:
+    runs-on: ubuntu-24.04
+    env:
+      DOCKER_TAR: ${{ inputs.dockerTar }}
+      GITHUB_TOKEN: ${{ secrets.envPAT }}
+      PACKAGE_SERVER: 'ghcr.io'
+      PUBLISH_TO_DOCKER: ${{ inputs.publishToDocker }}
+      UPDATE_LATEST_TAG: ${{ inputs.updateLatestTag }}
+    outputs:
+      imagePath: '${{ steps.load-docker.outputs.image }}:${{ steps.load-docker.outputs.tag }}'
+      image: '${{ steps.load-docker.outputs.image }}'
+      tag: '${{ steps.load-docker.outputs.tag }}'
+
+    steps: 
+
+    - name: Get Docker image from cache
+      uses: actions/cache@v4
+      id: restore-build
+      with:
+        key: ${{ inputs.fullKey }}
+        restore-keys: ${{ inputs.shortKey }}
+        path: |
+          ${{ env.DOCKER_TAR }}
+
+    - name: Check cache status # Warn workflow if fullKey not present
+      if: steps.restore-build.outputs.cache-hit != 'true'
+      run: |
+        echo -e "\033[33mWarning: Cache not found for input keys: ${{ inputs.fullKey }}. The cache may have been restored from alternative key ${{ inputs.shortKey }}"
+
+    - name: Load Docker image 
+      id: load-docker
+      uses: VirtoCommerce/vc-github-actions/docker-load-image@master
+      with:
+        dockerTar: ${{ env.DOCKER_TAR }}
+
+    - name: Docker Login
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.PACKAGE_SERVER }}
+        username: $GITHUB_ACTOR
+        password: ${{ env.GITHUB_TOKEN }}
+
+    - name: Publish Docker Image
+      uses: VirtoCommerce/vc-github-actions/publish-docker-image@master
+      with:
+          image: ${{ steps.load-docker.outputs.image }}
+          tag: ${{ steps.load-docker.outputs.tag }}
+          docker_user: ${{ secrets.dockerUser }}
+          docker_token: ${{ secrets.dockerToken }}
+          docker_hub: ${{ env.PUBLISH_TO_DOCKER }}
+          update_latest: ${{ env.UPDATE_LATEST_TAG }}

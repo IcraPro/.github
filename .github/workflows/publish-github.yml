@@ -1,0 +1,138 @@
+# v3.800.27
+# https://virtocommerce.atlassian.net/browse/VCST-4746
+name: VC Publish Github release and Nuget package
+
+on:
+  workflow_call:
+    outputs:
+      downloadUrl: 
+        value: '${{ jobs.publish-github.outputs.downloadUrl }}'
+    inputs:
+      fullKey:
+        required: true
+        type: string
+      changelog:
+        required: false
+        type: string
+        default: ''
+      forceBlob:
+        required: false
+        type: boolean
+        default: false
+      forceNuget:
+        required: false
+        type: boolean
+        default: true
+      forceGithub:
+        required: false
+        type: boolean
+        default: true
+      incrementPatch:
+        required: false
+        type: string
+        default: 'false'
+      makeLatest:
+        required: false
+        type: string
+        default: 'true'
+
+    secrets:
+      envPAT:
+        required: true
+      nugetKey:
+        required: false
+      BLOB_TOKEN:
+        required: false
+
+jobs:
+  publish-github:
+    runs-on: ubuntu-24.04
+    env:
+      NUGET_KEY: ${{ secrets.nugetKey }}
+      GITHUB_TOKEN: ${{ secrets.envPAT }}
+      BLOB_SAS: ${{ secrets.BLOB_TOKEN }}
+
+    outputs:
+      downloadUrl: ${{ steps.githubRelease.outputs.downloadUrl }}
+
+    steps: 
+
+    - name: Install VirtoCommerce.GlobalTool
+      uses: IcraPro/mn-github-actions/setup-mnbuild@main
+
+    - uses: actions/checkout@v4
+
+    - name: Increment Patch Version
+      if: ${{ inputs.incrementPatch == 'true' }}
+      run: |
+        vc-build IncrementPatch
+
+    - name: Get package from cache
+      uses: actions/cache@v4
+      id: restore-build
+      with:
+        key: ${{ inputs.fullKey }}
+        path: |
+          ${{ github.workspace }}/artifacts
+          ${{ github.workspace }}/publish
+
+    - name: Exit if cache not restored
+      if: steps.restore-build.outputs.cache-hit != 'true'
+      run: |
+        echo -e "\033[31mError: Cache not found for input keys: ${{ inputs.fullKey }}"
+        exit 1
+
+    - name: List /artifacts folder
+      working-directory: ${{ github.workspace }}/artifacts
+      run: ls -l
+
+    - name: Publish Github Release
+      if: ${{ inputs.forceGithub }}
+      id: githubRelease
+      with:
+        changelog: ${{ inputs.changelog }}
+        organization: ${{ github.repository_owner }}
+        skipString: 'Clean+Restore+Compile+WebPackBuild+Test+Publish+Compress'
+        makeLatest: ${{ inputs.makeLatest }}
+      uses: VirtoCommerce/vc-github-actions/publish-github-release@master
+
+    - name: Publish Nuget
+      if: ${{ inputs.forceNuget }}
+      uses: VirtoCommerce/vc-github-actions/publish-nuget@master
+      with:
+        skipString: 'Clean+Restore+Compile+Test+Pack'
+
+    - name: Publish to Blob
+      if:  ${{ inputs.forceBlob }}
+      id: blobRelease
+      uses: VirtoCommerce/vc-github-actions/publish-blob-release@master
+      with:
+        blobSAS: ${{ secrets.BLOB_TOKEN }}
+        blobUrl: ${{ vars.BLOB_URL }}
+
+    - name: Get PR number
+      id: getPrNumber
+      if: ${{ inputs.forceBlob }}
+      uses: VirtoCommerce/vc-github-actions/get-pr-number@master
+      with:
+        repo: "${{ github.repository }}"
+        branch: "${{ github.ref_name }}"
+
+    - name: Update blob URL in PR body
+      if: ${{ inputs.forceBlob && steps.getPrNumber.outputs.prNumber != '' && steps.getPrNumber.outputs.prNumber != null }}
+      shell: pwsh
+      run: |
+        $prBody = $(gh pr view ${{ steps.getPrNumber.outputs.prNumber }} --repo ${{ github.repository }} --json body | ConvertFrom-Json).body
+        if ($prBody -match 'https:\/\/vc3prerelease.blob.core.windows.net\/packages\/(\S+)') {
+            $prUpdatedBody = $prBody.Replace($matches[0], "${{ steps.blobRelease.outputs.packageUrl }}")
+            Write-Host "Updated PR #${{ steps.getPrNumber.outputs.prNumber }} body with new blob URL: ${{ steps.blobRelease.outputs.packageUrl }}"
+        } else {
+            Write-Warning "No blob URL found in PR body. Skipping update."
+            exit 0
+        }
+        gh pr edit ${{ steps.getPrNumber.outputs.prNumber }} --repo ${{ github.repository }} --body $prUpdatedBody
+        if ($lastExitCode -ne 0) {
+            Write-Host "Error: Failed to update PR body"
+            exit 1
+        }
+

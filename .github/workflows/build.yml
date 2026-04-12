@@ -1,0 +1,167 @@
+# v3.800.27
+name: MN build
+
+on:
+  workflow_call:
+    outputs:
+      dockerShortKey:
+        value: ${{ jobs.build-artifacts.outputs.dockerShortKey }}
+      dockerFullKey:
+        value: ${{ jobs.build-artifacts.outputs.dockerFullKey }}
+      packageShortKey:
+        value: ${{ jobs.build-artifacts.outputs.packageShortKey }}
+      packageFullKey:
+        value: ${{ jobs.build-artifacts.outputs.packageFullKey }}
+      artifactName:
+        value: ${{ jobs.build-artifacts.outputs.artifactName }}
+      dockerTar:
+        value: ${{ jobs.build-artifacts.outputs.dockerTar }}
+      imageTag:
+        value: ${{ jobs.build-artifacts.outputs.imageTag }}
+
+    inputs:
+      uploadPackage:
+        required: false
+        type: string
+        default: 'false'
+      uploadDocker:
+        required: false
+        type: string
+        default: 'false'
+      dockerFiles:
+        required: false
+        type: string
+        default: 'https://raw.githubusercontent.com/IcraPro/mn-docker/feat/net10/linux/platform/Dockerfile;https://raw.githubusercontent.com/IcraPro/mn-docker/master/linux/platform/wait-for-it.sh'
+      imageName:
+        required: false
+        type: string
+        default: 'platform'
+      forceVersionSuffix:
+        required: false
+        type: string
+        default: 'true'
+      incrementPatch:
+        required: false
+        type: string
+        default: 'false'
+
+    secrets:
+      envPAT:
+        required: true
+
+jobs:
+  build-artifacts:
+    runs-on: ubuntu-24.04
+    env:
+      DOCKER_TAR: 'image.tar'
+      ARTIFACT_NAME: ${{ github.event.repository.name }}
+      IMAGE_NAME: ${{ inputs.imageName }}
+      IMAGE_TAG: ''
+      GITHUB_TOKEN: ${{ secrets.envPAT }}
+      FETCH_DEPTH: 1
+      VERSION_SUFFIX: ''
+      MSBuildEnableWorkloadResolver: 'false'
+    outputs:
+      dockerShortKey: ${{ steps.cache-key.outputs.dockerShortKey }}
+      dockerFullKey: ${{ steps.cache-key.outputs.dockerFullKey }}
+      packageShortKey: ${{ steps.cache-key.outputs.packageShortKey }}
+      packageFullKey: ${{ steps.cache-key.outputs.packageFullKey }}
+      dockerTar: ${{ env.DOCKER_TAR }}
+      artifactName: ${{ env.ARTIFACT_NAME }}
+      imageTag: ${{ steps.artifactVer.outputs.taggedVersion }}
+
+    steps: 
+
+    - name: Set up Node 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Set up Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install Minima.GlobalTool
+      uses: IcraPro/mn-github-actions/setup-mnbuild@main
+
+    - name: Set FETCH_DEPTH variables
+      if: ${{ inputs.forceVersionSuffix == 'true' }}
+      run: |
+        echo "FETCH_DEPTH=0" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ env.FETCH_DEPTH }}
+
+    - name: Increment Patch Version
+      if: ${{ inputs.incrementPatch == 'true' }}
+      run: |
+        vc-build IncrementPatch
+
+    - name: Get Artifact Version
+      uses: IcraPro/mn-github-actions/get-image-version@main
+      id: artifactVer
+
+    - name: Set IMAGE_TAG variables
+      run: |
+        echo "IMAGE_TAG=${{ steps.artifactVer.outputs.prefix }}" >> $GITHUB_ENV
+
+    - name: Set VERSION_SUFFIX variables
+      if: ${{ inputs.forceVersionSuffix == 'true' }}
+      run: |
+        if [ '${{ github.event_name }}' == 'workflow_dispatch' ]; then
+          echo "VERSION_SUFFIX=${{ steps.artifactVer.outputs.fullSuffix }}" >> $GITHUB_ENV
+        else
+          echo "VERSION_SUFFIX=${{ steps.artifactVer.outputs.suffix }}" >> $GITHUB_ENV
+        fi;
+        echo "IMAGE_TAG=${{ steps.artifactVer.outputs.taggedVersion }}" >> $GITHUB_ENV
+
+    - name: Add version suffix
+      if: ${{ github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main' || inputs.forceVersionSuffix == 'true'}}
+      uses: IcraPro/mn-github-actions/add-version-suffix@main
+      with:
+        versionSuffix: ${{ env.VERSION_SUFFIX }}
+
+    - name: Packaging
+      run: vc-build Compress+Pack -skip Test
+
+    - name: Get cache key
+      uses: IcraPro/mn-github-actions/cache-get-key@main
+      id: cache-key
+      with:
+        runnerOs: ${{ runner.os  }}
+        artifactName: ${{ env.ARTIFACT_NAME }}
+
+    - name: Cache build artifacts
+      if: ${{ inputs.uploadPackage == 'true' }}
+      uses: actions/cache@v4
+      with:
+        key: ${{ steps.cache-key.outputs.packageFullKey }}
+        path: |
+          ${{ github.workspace }}/artifacts
+          ${{ github.workspace }}/publish
+
+    - name: Build Docker Image
+      if: ${{ inputs.uploadDocker == 'true' }}
+      id: dockerBuild
+      uses: IcraPro/mn-github-actions/build-docker-image@main
+      with:
+        # outputs: type=tar,dest=${{ github.workspace }}/${{ env.DOCKER_TAR }}
+        imageName: ${{ env.IMAGE_NAME }}
+        tag: ${{ env.IMAGE_TAG }}
+        dockerFiles: ${{ inputs.dockerFiles }}
+
+    - name: Save Docker to tar
+      if: ${{ inputs.uploadDocker == 'true' }}
+      run: |
+        docker save -o ${{ env.DOCKER_TAR }} ${{ steps.dockerBuild.outputs.imageName }}
+
+    - name: Cache Docker image
+      if: ${{ inputs.uploadDocker == 'true' }}
+      uses: actions/cache@v4
+      with:
+        key: ${{ steps.cache-key.outputs.dockerFullKey }}
+        path: |
+          ${{ env.DOCKER_TAR }}

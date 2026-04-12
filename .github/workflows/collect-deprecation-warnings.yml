@@ -1,0 +1,126 @@
+# v3.800.27
+name: Collect deprecation warnings
+
+on:
+  workflow_dispatch:
+    inputs:
+      numberOfRuns:
+        description: 'Number of runs to check for deprecation and obsolete warnings in each repo'
+        required: false
+        type: number
+        default: 5
+      repos:
+        description: 'Repos to check for deprecation and obsolete warnings. Allowed values: "all" or comma separated list of repos'
+        required: false
+        type: string
+        default: 'all'
+      dateThreshold:
+        description: 'Date threshold for checking deprecation and obsolete warnings in days'
+        required: false
+        type: string
+        default: '30'
+    
+  schedule:
+    - cron: '0 0 15 * *' # monthly on the 15th day at 00:00
+
+jobs:
+  collect-deprecation-warnings:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    env:
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+      GITHUB_TOKEN: ${{ secrets.PAT_VCST_2719 }}
+    steps:
+      - name: Collect deprecation warnings
+        id: collect-deprecation-warnings
+        env:
+          NUMBER_OF_RUNS: ${{ github.event.inputs.numberOfRuns || 5 }}
+          REPOS: ${{ github.event.inputs.repos || 'all' }}
+        shell: pwsh
+        run: |
+          if ("${{ env.REPOS }}" -eq 'all') {
+            [array]$repos = gh repo list IcraPro --json name -q '.[].name' --limit 1000
+          } else {
+            [array]$repos = "${{ env.REPOS }}".Split(',')
+          }
+          $fields = 'databaseId,name,conclusion,createdAt'
+          $result = @()
+          $skipValues = @('angular@1.8.3', 'angular-cookies@1.8.3', 'angular-resource@1.8.3', 'angular-translate-loader-url@2.19.1', 'angular-translate-storage-cookie@2.15.2', 'glob@7.1.7', 'har-validator@5.1.5', 'inflight@1.0.6', 'request@2.88.2', 'rimraf@2.7.1', 'angular-translate-storage-local@2.19.1', 'angular-translate-storage-cookie@2.19.1', 'uuid@3.4.0', 'angular-animate@1.8.3', 'angular-translate@2.15.2')
+          $timeThreshold = (Get-Date).AddDays(-${{ github.event.inputs.dateThreshold || 30 }})
+          $deprecationWarnings = @()
+          foreach ($repo in $repos) {
+              echo "Checking repo: $repo"
+              $testAccess = gh api "repos/IcraPro/$repo" --jq '.id'
+              if ($LASTEXITCODE -ne 0) {
+                  Write-Warning "Skipping $repo - no access or repo doesn't exist"
+                  continue
+              }
+              [array]$runs = gh run list -R IcraPro/$repo --limit ${{ env.NUMBER_OF_RUNS}} --json $fields | ConvertFrom-Json
+              echo "Runs before filtering:"
+              $runs
+              $runs = $runs | Where-Object { $_.createdAt -gt $timeThreshold }
+              echo "Runs after filtering:"
+              $runs
+              foreach ($run in $runs) {
+                  $runId = "$($run.databaseId)"
+                  $deprecationWarnings = gh run view $runId -R IcraPro/$repo | Select-String -Pattern 'deprecated', 'obsolete'
+                  if ($deprecationWarnings) {
+                      foreach ($warning in $deprecationWarnings) {
+                          $skip = $false
+                          foreach ($skipValue in $skipValues) {
+                              if ($warning.Line -match $skipValue) {
+                                  # continue
+                                  echo "Skipping $skipValue"
+                                  $skip = $true
+                                  break
+                              }
+                          }
+                          if (!$skip) {
+                              echo "Adding $warning.Line"
+                              $result += @{
+                                  $run.name = @{
+                                      "https://github.com/IcraPro/$repo/actions/runs/$runId" = $warning.Line
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+              echo "Done"
+          }
+          if ($result) {
+              echo $result | ConvertTo-Json -Depth 10 | Out-File -FilePath "$env:RUNNER_TEMP/deprecation-warnings.json"
+              echo "result=true" >> $env:GITHUB_OUTPUT
+          } else {
+              Write-Output 'No deprecation warnings found'
+              echo "result=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Display deprecation warnings
+        if: ${{ steps.collect-deprecation-warnings.outputs.result == 'true' }}
+        shell: pwsh
+        run: |
+          cat $env:RUNNER_TEMP/deprecation-warnings.json
+
+      - name: Upload deprecation warnings list
+        if: ${{ steps.collect-deprecation-warnings.outputs.result == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deprecation-warnings
+          path: ${{ runner.temp }}/deprecation-warnings.json
+          retention-days: 30
+        continue-on-error: true
+
+      - name: Teams notification
+        if: ${{ steps.collect-deprecation-warnings.outputs.result == 'true' }}
+        uses: IcraPro/mn-github-actions/publish-teams-webhook-notification@main
+        with:
+          teamsWebhookUrl: ${{ env.TEAMS_WEBHOOK_URL }}
+          mentions: '@(@{id = "859369bc-81d3-498d-a3a8-ceba4dd6c8a4"; name = "Andrew.Kubyshkin" })'
+          title: 'New deprecation warning(s) found'
+          workflowName: ${{ github.workflow }}
+          buildId: ${{ github.run_id }}
+          githubRepo: '${{ github.repository }}'

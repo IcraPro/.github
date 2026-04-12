@@ -1,0 +1,64 @@
+# v3.800.27
+# https://virtocommerce.atlassian.net/browse/VCST-4746
+name: Get metadata
+
+on:
+  workflow_call:
+    outputs:
+      changelog: 
+        value: ${{ jobs.get-metadata.outputs.changelog }}
+      versionSuffix: 
+        value: ${{ jobs.get-metadata.outputs.versionSuffix }}
+      imageTag: 
+        value: ${{ jobs.get-metadata.outputs.imageTag }}
+
+    inputs:
+      forceVersionSuffix:
+        required: false
+        type: string
+        default: 'true'
+
+jobs:
+  get-metadata:
+    runs-on: ubuntu-24.04
+    env:
+      FETCH_DEPTH: 1
+      GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      versionSuffix: ${{ steps.version.outputs.version_suffix }}
+      imageTag: ${{ steps.version.outputs.image_tag }}
+
+    steps: 
+
+    - name: Install VirtoCommerce.GlobalTool
+      uses: IcraPro/mn-github-actions/setup-mnbuild@main
+
+    - name: Set FETCH_DEPTH variables
+      if: ${{ inputs.forceVersionSuffix == 'true' }}
+      run: |
+        echo "FETCH_DEPTH=0" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ env.FETCH_DEPTH }}
+
+    - name: Get Changelog
+      id: changelog
+      uses: IcraPro/mn-github-actions/changelog-generator@main
+
+    - name: Get Artifact Version
+      uses: IcraPro/mn-github-actions/get-image-version@main
+      id: artifactVer
+
+    - name: Set version variables
+      if: ${{ inputs.forceVersionSuffix == 'true' }}
+      id: version
+      run: |
+        if [ '${{ github.event_name }}' == 'workflow_dispatch' ]; then
+          echo "version_suffix=${{ steps.artifactVer.outputs.fullSuffix }}" >> $GITHUB_OUTPUT
+        else
+          echo "version_suffix=${{ steps.artifactVer.outputs.suffix }}" >> $GITHUB_OUTPUT
+        fi;
+        echo "image_tag=${{ steps.artifactVer.outputs.taggedVersion }}" >> $GITHUB_OUTPUT
