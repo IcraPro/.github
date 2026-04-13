@@ -80,7 +80,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Minima.GlobalTool
+      - name: Install Minima.BuildTool
         uses: IcraPro/mn-github-actions/setup-mnbuild@main
 
       - name: Install dotnet-sonarscanner

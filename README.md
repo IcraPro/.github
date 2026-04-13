@@ -1,6 +1,6 @@
-# Virto Commerce Workflows
+# Minima Platform Workflows
 
-Default workflow templates and reusable workflows for VirtoCommerce platform/modules.
+Default workflow templates and reusable workflows for Minima Platform modules.
 
 ## Workflow templates
 
@@ -8,19 +8,19 @@ Actual workflow templates are located in `workflow-templates` folder.
 
 Module workflow templates include:
 
-- module-ci.yml - VirtoCommerce Module CI workflow template.
-- module-release-hotfix.yml - VirtoCommerce Module release hotfix workflow template.
-- release.yml - VirtoCommerce Release workflow template.
-- publish-nugets.yml VirtoCommerce nugets publish workflow template.
+- module-ci.yml - Minima Module CI workflow template.
+- module-release-hotfix.yml - Minima Module release hotfix workflow template.
+- release.yml - Minima Release workflow template.
+- publish-nugets.yml Minima nugets publish workflow template.
 
 Platform workflow templates include:
 
-- platform-ci.yml - VirtoCommerce Platform CI workflow template.
-- platform-release-hotfix.yml - VirtoCommerce Platform release hotfix workflow template.
-- release.yml - VirtoCommerce Release workflow template.
-- publish-nugets.yml - VirtoCommerce nugets publish workflow template.
+- platform-ci.yml - Minima Platform CI workflow template.
+- platform-release-hotfix.yml - Minima Platform release hotfix workflow template.
+- release.yml - Minima Release workflow template.
+- publish-nugets.yml - Minima nugets publish workflow template.
 
-`Note` release.yml and publish-nugets.yml used for both VirtoCommerce modules and platform.
+`Note` release.yml and publish-nugets.yml used for both Minima modules and platform.
 
 ## Update workflow templates
 

@@ -83,7 +83,7 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install Minima.GlobalTool
+    - name: Install Minima.BuildTool
       uses: IcraPro/mn-github-actions/setup-mnbuild@main
 
     - name: Set FETCH_DEPTH variables
